@@ -24,7 +24,7 @@ sudo sysctl -w net.core.wmem_max=8000000
 | Variable | Requirement | Description |
 |:--------:|:-----------:|:-----------:|
 | `PROXY`  | Optional | External proxy endpoint in the form `host:port`. |
-| via ENV<br />`-e XXX@YYY.ZZZ`<br />via ARG<br />`XXX@YYY.ZZZ`  | Required | Your email address. Container exits if not provided. |
+| via ENV<br />`-e EMAIL=XXX@YYY.ZZZ`<br />via ARG<br />`XXX@YYY.ZZZ`  | Required | Your email address. Container exits if not provided. |
 
 ## Run via ENV
 ```bash
