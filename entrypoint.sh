@@ -9,10 +9,46 @@ log() {
   echo "$(date '+%Y-%m-%d %H:%M:%S') $*"
 }
 
-if [ -z "${EMAIL:-}" ]; then
-  log " >>> An2Kin >>> ERROR: EMAIL environment variable is not set."
-  exit 1
-fi
+validate_email_input() {
+  local EMAIL="${EMAIL:-}"
+  local ARG="$1"
+
+  if [ -z "$EMAIL" ] && [ $# -eq 0 ]; then
+    log " >>> An2Kin >>> ERROR: EMAIL not provided (env or arg)."
+    exit 1
+
+  elif [ $# -gt 1 ]; then
+    log " >>> An2Kin >>> ERROR: Too many positional arguments. Only one EMAIL argument is allowed."
+    exit 1
+
+  elif [ -n "$EMAIL" ] && [ -n "$ARG" ]; then
+    log " >>> An2Kin >>> ERROR: Both EMAIL env and positional argument provided. Please use only one."
+    exit 1
+
+  elif [ -n "$EMAIL" ]; then
+    local at_count
+    at_count=$(printf "%s" "$EMAIL" | awk -F'@' '{print NF-1}')
+    if [ "$at_count" -eq 1 ] && [[ "${EMAIL#*@}" == *.* ]]; then
+      log " >>> An2Kin >>> INFO: Using EMAIL from environment: $EMAIL"
+    else
+      log " >>> An2Kin >>> ERROR: Invalid EMAIL format in environment: $EMAIL"
+      exit 1
+    fi
+
+  elif [ -n "$ARG" ]; then
+    local at_count
+    at_count=$(printf "%s" "$ARG" | awk -F'@' '{print NF-1}')
+    if [ "$at_count" -eq 1 ] && [[ "${ARG#*@}" == *.* ]]; then
+      EMAIL="$ARG"
+      log " >>> An2Kin >>> INFO: Using EMAIL from positional argument: $EMAIL"
+    else
+      log " >>> An2Kin >>> ERROR: Invalid EMAIL format in argument: $ARG"
+      exit 1
+    fi
+  fi
+
+  export EMAIL
+}
 
 setup_iptables() {
   log " >>> An2Kin >>> Setting up iptables and redsocks..."
@@ -35,9 +71,11 @@ cleanup() {
   iptables -t nat -F REDSOCKS 2>/dev/null || true
   iptables -t nat -D OUTPUT -p tcp -j REDSOCKS 2>/dev/null || true
   iptables -t nat -X REDSOCKS 2>/dev/null || true
-  kill $REDSOCKS_PID 2>/dev/null || true
+
+  if [ -n "$REDSOCKS_PID" ]; then
+    kill "$REDSOCKS_PID" 2>/dev/null || true
+  fi
 }
-trap cleanup EXIT
 
 setup_proxy() {
   if [ -n "$PROXY" ]; then
@@ -87,6 +125,8 @@ check_ip() {
 }
 
 main() {
+  validate_email_input "$@"
+  trap cleanup EXIT
   while true; do
       setup_proxy
       check_ip
